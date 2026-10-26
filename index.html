@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>استمارة التواصل - تجربة Supabase</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    :focus-visible { outline: 3px solid #1d4ed8; outline-offset: 2px; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col items-center justify-center p-4">
+
+  <main id="main" class="w-full max-w-lg bg-white rounded-xl shadow-md border border-gray-200 p-6 sm:p-8" x-data="contactForm()">
+    <header class="mb-6 text-center">
+      <h1 class="text-2xl font-bold text-gray-900 mb-2">استمارة إرسال البيانات</h1>
+      <p class="text-sm text-gray-600">تُرسَل هذه البيانات مباشرة إلى قاعدة بيانات Supabase عبر واجهة REST الآمنة.</p>
+    </header>
+
+    <!-- تنبيهات الحالة الحية لقارئات الشاشة -->
+    <div role="status" aria-live="polite" class="sr-only" x-text="liveStatus"></div>
+
+    <!-- رسائل النجاح والخطأ المرئية -->
+    <template x-if="statusMessage">
+      <div class="mb-4 p-4 rounded-lg text-sm font-semibold border flex items-start gap-2"
+           :class="isSuccess ? 'bg-green-50 text-green-900 border-green-300' : 'bg-red-50 text-red-900 border-red-300'"
+           role="alert" tabindex="-1" id="alert-box">
+        <span x-text="isSuccess ? 'نجاح:' : 'تنبيه خطأ:'" class="font-bold"></span>
+        <span x-text="statusMessage"></span>
+      </div>
+    </template>
+
+    <form @submit.prevent="submitForm()" class="space-y-5" novalidate>
+      <!-- حقل الاسم -->
+      <div>
+        <label for="name" class="block text-sm font-semibold text-gray-800 mb-1">
+          الاسم الكامل <span class="text-red-600" aria-hidden="true">*</span>
+        </label>
+        <input type="text" id="name" name="name" x-model="formData.name" required
+               :disabled="isSubmitting"
+               autocomplete="name"
+               aria-required="true"
+               class="w-full px-3 py-2 border rounded-lg text-gray-900 focus:border-blue-600 border-gray-300">
+      </div>
+
+      <!-- حقل البريد الإلكتروني -->
+      <div>
+        <label for="email" class="block text-sm font-semibold text-gray-800 mb-1">
+          البريد الإلكتروني <span class="text-red-600" aria-hidden="true">*</span>
+        </label>
+        <input type="email" id="email" name="email" x-model="formData.email" required
+               :disabled="isSubmitting"
+               autocomplete="email"
+               aria-required="true"
+               class="w-full px-3 py-2 border rounded-lg text-gray-900 focus:border-blue-600 border-gray-300"
+               dir="ltr">
+      </div>
+
+      <!-- حقل الرسالة -->
+      <div>
+        <label for="message" class="block text-sm font-semibold text-gray-800 mb-1">
+          نص الرسالة أو البيان <span class="text-red-600" aria-hidden="true">*</span>
+        </label>
+        <textarea id="message" name="message" rows="4" x-model="formData.message" required
+                  :disabled="isSubmitting"
+                  aria-required="true"
+                  class="w-full px-3 py-2 border rounded-lg text-gray-900 focus:border-blue-600 border-gray-300"></textarea>
+      </div>
+
+      <!-- زر الإرسال -->
+      <div>
+        <button type="submit"
+                :disabled="isSubmitting"
+                class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-2.5 px-4 rounded-lg transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+          <span x-show="!isSubmitting">إرسال إلى قاعدة البيانات</span>
+          <span x-show="isSubmitting" x-cloak>جارٍ الإرسال إلى Supabase...</span>
+        </button>
+      </div>
+    </form>
+  </main>
+
+  <script>
+    function contactForm() {
+      // إعدادات الاتصال بمشروع Supabase عبر المفتاح العام
+      const SUPABASE_URL = 'https://vdaaczlinhlecwhiegyr.supabase.co';
+      const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_0Yjl0VR4Mvk7ywrL13ojuA_v3aaxI0_';
+
+      return {
+        formData: {
+          name: '',
+          email: '',
+          message: ''
+        },
+        isSubmitting: false,
+        statusMessage: '',
+        isSuccess: false,
+        liveStatus: '',
+
+        async submitForm() {
+          // التحقق المبدئي
+          if (!this.formData.name.trim() || !this.formData.email.trim() || !this.formData.message.trim()) {
+            this.showAlert('يرجى ملء جميع الحقول المطلوبة.', false);
+            return;
+          }
+
+          this.isSubmitting = true;
+          this.statusMessage = '';
+          this.liveStatus = 'جارٍ إرسال البيانات إلى السحابة...';
+
+          try {
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/messages`, {
+              method: 'POST',
+              headers: {
+                'apikey': SUPABASE_PUBLISHABLE_KEY,
+                'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal'
+              },
+              body: JSON.stringify({
+                name: this.formData.name.trim(),
+                email: this.formData.email.trim(),
+                message: this.formData.message.trim()
+              }),
+              signal: AbortSignal.timeout(15000)
+            });
+
+            if (response.ok || response.status === 201) {
+              this.showAlert('أُرسلت البيانات وحُفظت في قاعدة بيانات Supabase بنجاح.', true);
+              this.formData.name = '';
+              this.formData.email = '';
+              this.formData.message = '';
+            } else {
+              const errData = await response.json().catch(() => ({}));
+              let msg = 'تعذّر حفظ البيانات في الخادم.';
+              if (response.status === 404 || errData.code === 'PGRST205') {
+                msg = 'جدول messages غير موجود في قاعدة بياناتك بعد. تأكد من تشغيل أمر إنشاء الجدول.';
+              } else if (errData.message) {
+                msg = `خطأ من الخادم: ${errData.message}`;
+              }
+              this.showAlert(msg, false);
+            }
+          } catch (error) {
+            if (error.name === 'TimeoutError') {
+              this.showAlert('استغرق الاتصال وقتاً طويلاً. تحقق من شبكة الإنترنت.', false);
+            } else {
+              this.showAlert('تعذّر الاتصال بقاعدة البيانات. تحقق من الشبكة.', false);
+            }
+          } finally {
+            this.isSubmitting = false;
+          }
+        },
+
+        showAlert(msg, success) {
+          this.statusMessage = msg;
+          this.isSuccess = success;
+          this.liveStatus = msg;
+          this.$nextTick(() => {
+            const el = document.getElementById('alert-box');
+            if (el) el.focus();
+          });
+        }
+      };
+    }
+  </script>
+</body>
+</html>
